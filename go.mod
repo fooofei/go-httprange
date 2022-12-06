@@ -1,4 +1,4 @@
-module github.com/fooofei/go/httprange
+module github.com/fooofei/go-httprange
 
 go 1.19
 
