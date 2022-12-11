@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 )
@@ -43,7 +44,7 @@ func Do(ctx context.Context, clt Requester, url string) ([]byte, error) {
 					return nil
 				default:
 				}
-				if err := readChunk(clt, req.WithContext(errCtx), task); err != nil {
+				if err := readChunk(ctx, preRead, task); err != nil {
 					return err
 				}
 			}
@@ -100,7 +101,8 @@ func DoToFile(ctx context.Context, clt Requester, url, filePath string) error {
 					Offset:  task.Offset,
 					Content: make([]byte, task.Size),
 				}
-				if err := readChunk(clt, req, mt); err != nil {
+
+				if err := readChunk(ctx, preRead, mt); err != nil {
 					return err
 				}
 				select {
@@ -167,13 +169,14 @@ func equal(content []byte, checksum string) (bool, error) {
 	return hmac.Equal(v1[:], expect), nil
 }
 
-func readChunk(clt Requester, req *http.Request, task memoryTaskType) error {
-	var chunkReader, err = New(clt, req)
+func readChunk(ctx context.Context, preReader *HTTPReaderAt, task memoryTaskType) error {
+	// a chunk should done in 1 minutes
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+	var chunkReader = preReader.Clone(ctx)
+	var n, err = chunkReader.ReadAt(task.Content, task.Offset)
 	if err != nil {
-		return err
-	}
-	var n int
-	if n, err = chunkReader.ReadAt(task.Content, task.Offset); err != nil {
 		return err
 	}
 	if n != len(task.Content) {

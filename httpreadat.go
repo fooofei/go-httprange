@@ -11,6 +11,7 @@ package httprange
 // copy from https://raw.githubusercontent.com/snabb/httpreaderat/master/httpreaderat.go
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -57,6 +58,16 @@ func New(client Requester, req *http.Request) (ra *HTTPReaderAt, err error) {
 		return nil, err
 	}
 	return ra, nil
+}
+
+// Clone return a new HTTPReaderAt with new context
+// and new HTTPReaderAt will not call init()
+func (ra *HTTPReaderAt) Clone(ctx context.Context) *HTTPReaderAt {
+	return &HTTPReaderAt{
+		client: ra.client,
+		req:    ra.req.WithContext(ctx),
+		meta:   ra.meta,
+	}
 }
 
 // ContentType returns "Content-Type" header contents.
